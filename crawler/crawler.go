@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"search_egine/db"
 	"search_egine/parser"
 	"strings"
 )
@@ -48,6 +49,18 @@ func (cr *Crawler) Crawl(urlToCrawl string) {
 
 		p := parser.NewParser(dataStr, urlToCrawl)
 		p.Traverse()
+
+		storage, err := db.NewStorage()
+		if err != nil {
+			continue
+		}
+
+		page := db.Page{
+			Url:     urlToCrawl,
+			Content: p.Content,
+			Urls:    p.Url,
+		}
+		storage.Store(&page)
 
 		for _, url := range p.Url {
 			if rb.PathIsAllow(url) && !visited[url] {

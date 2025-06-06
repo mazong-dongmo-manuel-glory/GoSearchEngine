@@ -4,6 +4,7 @@ import (
 	"golang.org/x/net/html"
 	"search_egine/utils"
 	"strings"
+	"unicode/utf8"
 )
 
 type Parser struct {
@@ -43,14 +44,15 @@ func (p *Parser) Traverse() {
 
 			// si c'est du texte on l'ajoute au contenu
 			if c.Type == html.TextNode && strings.TrimSpace(c.Data) != "" {
-				p.Content += strings.TrimSpace(c.Data) + " "
+
+				p.Content += cleanText(strings.TrimSpace(c.Data)) + " "
 			}
 
 			// si c'est un lien on enregistre tout
 			if c.Data == "a" && c.Type == html.ElementNode {
 				newUrl := utils.BuildUrl(p.BaseUrl, p.GetAttribute(c, "href"))
 				if newUrl != "" {
-					p.Url = append(p.Url, newUrl)
+					p.Url = append(p.Url, cleanText(newUrl))
 
 				}
 			}
@@ -75,4 +77,14 @@ func (p *Parser) GetAttribute(node *html.Node, attrKey string) string {
 	}
 	return attrValue
 
+}
+
+func cleanText(text string) string {
+	// Remplacer les caractères invalides par des espaces
+	return strings.Map(func(r rune) rune {
+		if r == 0xFFFD || !utf8.ValidRune(r) {
+			return ' '
+		}
+		return r
+	}, text)
 }
