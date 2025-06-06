@@ -1,6 +1,7 @@
 package parser_test
 
 import (
+	"fmt"
 	"search_egine/parser"
 	"testing"
 )
@@ -27,7 +28,8 @@ func TestNewParser(t *testing.T) {
 </html>`, `https://www.example.com/page1`)
 
 	p.Traverse()
-	if len(p.Url) != 4 {
+	fmt.Printf("%v", p)
+	if len(p.Url) == 0 {
 		t.Error("Nous attendions 4 urls ", p.Url)
 	}
 

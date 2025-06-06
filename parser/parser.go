@@ -2,11 +2,12 @@ package parser
 
 import (
 	"golang.org/x/net/html"
+	"search_egine/utils"
 	"strings"
 )
 
 type Parser struct {
-	Content  string     // le contenu brue
+	Content  string     // le contenu brute
 	Url      []string   // la liste des urls retourner par le parseur
 	RootNode *html.Node // Le noeud racine
 	BaseUrl  string
@@ -27,7 +28,7 @@ func NewParser(content string, baseUrl string) *Parser {
 	}
 }
 
-// recuperer toutes les urls
+// recupere le contenu et les liens
 func (p *Parser) Traverse() {
 	task := []*html.Node{p.RootNode}
 	for len(task) > 0 {
@@ -35,6 +36,11 @@ func (p *Parser) Traverse() {
 		task = task[:len(task)-1]
 
 		for c := node.FirstChild; c != nil; c = c.NextSibling {
+
+			if c.Type == html.ElementNode && (c.Data == "script" || c.Data == "style" || c.Data == "iframe" || c.Data == "svg" || c.Data == "img") {
+				continue
+			}
+
 			// si c'est du texte on l'ajoute au contenu
 			if c.Type == html.TextNode && strings.TrimSpace(c.Data) != "" {
 				p.Content += strings.TrimSpace(c.Data) + " "
@@ -42,7 +48,11 @@ func (p *Parser) Traverse() {
 
 			// si c'est un lien on enregistre tout
 			if c.Data == "a" && c.Type == html.ElementNode {
-				p.Url = append(p.Url, p.GetAttribute(c, "href"))
+				newUrl := utils.BuildUrl(p.BaseUrl, p.GetAttribute(c, "href"))
+				if newUrl != "" {
+					p.Url = append(p.Url, newUrl)
+
+				}
 			}
 			//passer au prochain element
 			if c.Type == html.ElementNode {
