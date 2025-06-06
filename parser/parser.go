@@ -81,10 +81,10 @@ func (p *Parser) GetAttribute(node *html.Node, attrKey string) string {
 
 func cleanText(text string) string {
 	// Remplacer les caractères invalides par des espaces
-	return strings.Map(func(r rune) rune {
+	return strings.TrimSpace(strings.Map(func(r rune) rune {
 		if r == 0xFFFD || !utf8.ValidRune(r) {
 			return ' '
 		}
 		return r
-	}, text)
+	}, text))
 }

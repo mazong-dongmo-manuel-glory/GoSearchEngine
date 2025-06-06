@@ -7,6 +7,6 @@ import (
 func main() {
 
 	cr := crawler.Crawler{}
-	cr.Crawl("https://www.google.com/")
+	cr.Crawl("https://ici.radio-canada.ca/")
 
 }
