@@ -8,9 +8,9 @@ import (
 )
 
 type Parser struct {
-	Content  string     // le contenu brute
-	Url      []string   // la liste des urls retourner par le parseur
-	RootNode *html.Node // Le noeud racine
+	Content  string            // le contenu brute
+	Url      map[string]string // la liste des urls retourner par le parseur
+	RootNode *html.Node        // Le noeud racine
 	BaseUrl  string
 }
 
@@ -23,7 +23,7 @@ func NewParser(content string, baseUrl string) *Parser {
 
 	return &Parser{
 		Content:  "",
-		Url:      []string{},
+		Url:      map[string]string{},
 		RootNode: node,
 		BaseUrl:  baseUrl,
 	}
@@ -52,7 +52,7 @@ func (p *Parser) Traverse() {
 			if c.Data == "a" && c.Type == html.ElementNode {
 				newUrl := utils.BuildUrl(p.BaseUrl, p.GetAttribute(c, "href"))
 				if newUrl != "" {
-					p.Url = append(p.Url, cleanText(newUrl))
+					p.Url[cleanText(newUrl)] = ""
 
 				}
 			}

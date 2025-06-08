@@ -7,42 +7,65 @@ import (
 	"search_egine/db"
 	"search_egine/parser"
 	"strings"
+	"sync"
+	"time"
 )
+
+var lock sync.Mutex
+var domains = db.Domains{}
+var visited = make(map[string]bool)
+var dbName = "search_engine"
+
+const MaxSizeVisitedUrl = 10000
+const MaxSizeUrlInDomain = 20
+const MaxDomain = 100
 
 type Crawler struct{}
 
-func (cr *Crawler) Crawl(urlToCrawl string) {
-	queue := []string{urlToCrawl}
-	visited := make(map[string]bool)
-	visited[urlToCrawl] = true
+func (cr *Crawler) Crawl(id int) {
 
-	for len(queue) > 0 {
-		urlToCrawl := queue[0]
+	rb := &parser.RobotTxt{}
+	storage, err := db.NewStorage(dbName)
+	if err != nil {
+		return
+	}
+	for domains.Size() > 0 {
+		lock.Lock()
+		if domains.Size() == 0 {
+			lock.Unlock()
+			break
+		}
+
+		// Récupère une URL et la retire de la file
+		urlToCrawl := domains.GetUrlIn()
 		visited[urlToCrawl] = true
-		fmt.Printf("Crawling : %v\n", urlToCrawl)
+		lock.Unlock()
+		urlToCrawl = strings.TrimSpace(urlToCrawl)
 
-		queue = queue[1:]
+		if urlToCrawl == "" {
+			continue
+		}
 
-		rb := &parser.RobotTxt{}
+		fmt.Printf("Crawling(%v) : %v\n", id, urlToCrawl)
 
 		rb.GetDisallowPath(urlToCrawl)
+		if rb.CheckIfIsDisAllowPath(urlToCrawl) {
+			continue
+		}
 
 		resp, err := http.Get(urlToCrawl)
 		if err != nil {
-			fmt.Printf("Erreur lors de la récupération de l'URL : %v\n", err)
-
+			//fmt.Printf("Erreur lors de la récupération de l'URL : %v\n", err)
 			continue
 		}
-		defer resp.Body.Close()
-
 		if resp.StatusCode != 200 && !strings.Contains(resp.Header.Get("Content-Type"), "text/html") {
-			fmt.Printf("Le status n'est pas correct ou le contenu n'est pas du texte : %v\n", resp.StatusCode)
+			//fmt.Printf("Le status n'est pas correct ou le contenu n'est pas du texte : %v\n", resp.StatusCode)
+			resp.Body.Close()
 			continue
 		}
-
 		data, err := io.ReadAll(resp.Body)
 		if err != nil {
-			fmt.Printf("Erreur lors de la lecture de l'URL : %v\n", err)
+			//fmt.Printf("Erreur lors de la lecture de l'URL : %v\n", err)
 			continue
 		}
 		dataStr := string(data)
@@ -50,24 +73,57 @@ func (cr *Crawler) Crawl(urlToCrawl string) {
 		p := parser.NewParser(dataStr, urlToCrawl)
 		p.Traverse()
 
-		storage, err := db.NewStorage()
-		if err != nil {
-			continue
-		}
-
 		page := db.Page{
 			Url:     urlToCrawl,
 			Content: p.Content,
 			Urls:    p.Url,
 		}
 		storage.Store(&page)
-
-		for _, url := range p.Url {
-			if rb.PathIsAllow(url) && !visited[url] {
-				queue = append(queue, url)
+		for url, _ := range p.Url {
+			lock.Lock()
+			_, isVisited := visited[url]
+			if !isVisited && rb.CheckIfIsDisAllowPath(url) == false && len(domains) < MaxDomain {
+				domains.AddUrl(url)
 
 			}
+			lock.Unlock()
+
 		}
 	}
 
+}
+
+func Init(urls []string) {
+	for _, url := range urls {
+		domains.AddUrl(url)
+	}
+}
+
+func DomainHandler() {
+
+	storage, err := db.NewStorage(dbName)
+	if err != nil {
+		return
+	}
+	for {
+		time.Sleep(time.Second * 10)
+		lock.Lock()
+		if domains.Size() == 0 {
+			lock.Unlock()
+			break
+		}
+		if len(visited) > MaxSizeVisitedUrl {
+			visited = make(map[string]bool)
+		}
+		for _, domain := range domains {
+			if domain != nil && len(domain.Urls) > MaxSizeUrlInDomain {
+				urlToStore := domain.Urls[len(domain.Urls)-(MaxSizeUrlInDomain-4):]
+				domain.Urls = domain.Urls[:len(domain.Urls)-(MaxSizeUrlInDomain-4)]
+				storage.Store(urlToStore)
+			}
+		}
+
+		lock.Unlock()
+
+	}
 }

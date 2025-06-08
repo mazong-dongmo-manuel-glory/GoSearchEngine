@@ -5,28 +5,22 @@ import (
 	"testing"
 )
 
-func TestNewRobotTxt(t *testing.T) {
-	rb := parser.RobotTxt{}
-	rb.GetDisallowPath("https://www.google.com/")
-
-	if rb.DisallowPath == nil {
-		t.Error("Nous attendions un dictionnaire")
-	}
-	if len(rb.DisallowPath) == 0 {
-		t.Error("Nous nous attendions des chemins")
-	}
-	if len(rb.DisallowPath) != 0 {
-		t.Log(rb.DisallowPath)
-	}
-}
-
-func TestPathIsAllow(t *testing.T) {
+func TestGetDisallowPath(t *testing.T) {
 	rb := &parser.RobotTxt{}
-	rb.GetDisallowPath("https://www.google.com/")
-	if !rb.PathIsAllow("https://www.google.com/") {
-		t.Error("Nous attendions true")
+	rb.GetDisallowPath("https://www.camerounweb.com/")
+	if rb.DisAllowPath == nil {
+		t.Error("Disallow path is nil")
 	}
-	if rb.PathIsAllow("https://www.google.com/?hl=*&*&gws_rd=ssl:false") {
-		t.Error("Nous attendions false")
+
+}
+func TestCheckIfIsDisAllowPath(t *testing.T) {
+	rb := &parser.RobotTxt{}
+	rb.GetDisallowPath("https://www.camerounweb.com/")
+	if rb.CheckIfIsDisAllowPath("https://www.camerounweb.com/contact") {
+		t.Error("Disallow path is not correct")
 	}
+	if !rb.CheckIfIsDisAllowPath("https://www.camerounweb.com/validate_user.php?url=*") {
+		t.Error("Disallow path is not correct")
+	}
+	
 }

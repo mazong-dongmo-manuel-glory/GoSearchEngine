@@ -8,49 +8,62 @@ import (
 )
 
 type RobotTxt struct {
-	DisallowPath map[string]bool
+	DisAllowPath map[string]string
 }
 
-func (r *RobotTxt) GetDisallowPath(urlToParse string) {
-
-	r.DisallowPath = make(map[string]bool)
-	urlR, err := url.Parse(urlToParse)
+func (rb *RobotTxt) GetDisallowPath(urlToFind string) {
+	urlToFindParsed, err := url.Parse(urlToFind)
+	rb.DisAllowPath = make(map[string]string)
 	if err != nil {
 		return
 	}
-	robotTxtUrl := urlR.ResolveReference(&url.URL{Path: "/robots.txt"})
-	resp, err := http.Get(robotTxtUrl.String())
+
+	robotUrl := urlToFindParsed.ResolveReference(&url.URL{Path: "/robots.txt"})
+
+	resp, err := http.Get(robotUrl.String())
 	if err != nil {
 		return
 	}
-	defer func(Body io.ReadCloser) {
-		err := Body.Close()
-		if err != nil {
-		}
-	}(resp.Body)
-
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 || !strings.Contains(resp.Header.Get("Content-Type"), "text/plain") {
+		return
+	}
 	data, err := io.ReadAll(resp.Body)
-
 	if err != nil {
 		return
 	}
-	dataStr := strings.Split(string(data), "\n")
-	for _, line := range dataStr {
-		splitLine := strings.Split(line, ":")
-		if len(splitLine) == 2 {
-			if splitLine[0] == "Disallow" {
-				r.DisallowPath[strings.TrimSpace(splitLine[1])] = false
+	dataStr := string(data)
+	prevUserAgent := make(map[string]string)
+	endOfNewUserAgent := false
+	for _, line := range strings.Split(dataStr, "\n") {
+		if strings.Contains(line, "User-agent") && !endOfNewUserAgent {
+			prevUserAgent[line] = ""
+		} else if strings.Contains(line, "User-agent") && endOfNewUserAgent {
+			endOfNewUserAgent = false
+			prevUserAgent = make(map[string]string)
+			prevUserAgent[line] = ""
+
+		} else {
+			endOfNewUserAgent = true
+			if strings.Contains(line, "Disallow") {
+				lines := strings.Split(line, ":")
+				_, ok := prevUserAgent["User-agent: *"]
+				if len(lines) > 1 && ok {
+					rb.DisAllowPath[strings.TrimSpace(lines[1])] = ""
+				}
 			}
 		}
+
 	}
+
 }
 
-func (r *RobotTxt) PathIsAllow(urlToParse string) bool {
-	for path, _ := range r.DisallowPath {
-		if strings.Contains(urlToParse, path) {
-
-			return false
+// retourne true si l'url est dans la liste des disallow path'
+func (rb *RobotTxt) CheckIfIsDisAllowPath(urlToFind string) bool {
+	for urlR, _ := range rb.DisAllowPath {
+		if strings.Contains(urlToFind, urlR) {
+			return true
 		}
 	}
-	return true
+	return false
 }
