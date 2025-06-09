@@ -15,10 +15,10 @@ var lock sync.Mutex
 
 var visited = make(map[string]bool)
 
-const MaxDomainSize = 1000
+const MaxDomainSize = 10000
 const MaxQueueSize = 40000
 const MinSize = 10000
-const MaxVisitedSize = 1000
+const MaxVisitedSize = 10000
 
 var domains = Domains{}
 var dbName = "search_engine"
@@ -31,7 +31,6 @@ func (cr *Crawler) Crawl(id int) {
 	storage, err := db.NewStorage(dbName)
 	if err != nil {
 		panic(err)
-		return
 	}
 
 	for len(queue) > 0 {
@@ -42,13 +41,6 @@ func (cr *Crawler) Crawl(id int) {
 		visited[urlToCrawl] = true
 		lock.Unlock()
 		urlToCrawl = strings.TrimSpace(urlToCrawl)
-
-		if urlToCrawl == "" {
-			fmt.Println("Queue is empty")
-			time.Sleep(1 * time.Second)
-			continue
-		}
-
 		fmt.Printf("Crawling(%v) : %v\n", id, urlToCrawl)
 
 		rb.GetDisallowPath(urlToCrawl)
@@ -97,7 +89,6 @@ func (cr *Crawler) Crawl(id int) {
 	fmt.Println()
 	fmt.Println()
 	fmt.Println()
-
 	fmt.Printf("Crawler(%v) is done\n", id)
 	fmt.Println()
 	fmt.Println()
@@ -109,11 +100,10 @@ func QeueHandler() {
 	storage, err := db.NewStorage(dbName)
 	if err != nil {
 		panic(err)
-		return
 	}
 	for {
 
-		time.Sleep(5 * time.Second)
+		time.Sleep(10 * time.Second)
 		fmt.Println()
 		fmt.Println()
 		fmt.Printf("Queue size : %v\n", len(queue))
@@ -129,12 +119,12 @@ func QeueHandler() {
 			visited = make(map[string]bool)
 		}
 		if len(queue) > MaxQueueSize {
-			urlToStore := queue[len(queue)-(MinSize*2):]
+			urlToStore := queue[MaxQueueSize-(MinSize*2):]
 			storage.StoreQueue(urlToStore)
-			queue = queue[:len(queue)-(MinSize*2)]
+			queue = queue[:MaxQueueSize-(MinSize*2)]
 
 		} else if len(queue) <= MinSize {
-			newUrlToQueue := storage.GetQueue(MinSize)
+			newUrlToQueue := storage.GetQueue(MinSize * 2)
 			queue = append(queue, newUrlToQueue...)
 		}
 		lock.Unlock()

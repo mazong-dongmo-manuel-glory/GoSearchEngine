@@ -41,6 +41,7 @@ func AddNewUrlInQueue(url string) {
 func GetUrlInQueue() string {
 
 	for len(queue) > 0 {
+
 		url := queue.Get()
 		domainOfUrl := getHostname(url)
 		timeOfLastGet, ok := domains[domainOfUrl]

@@ -72,7 +72,7 @@ func main() {
 	crawler.Init(sitesFrancophones)
 	wg.Add(1)
 	go crawler.QeueHandler()
-	numberCrawlers := 10
+	numberCrawlers := 10 // Number of concurrent crawlers
 
 	wg.Add(numberCrawlers)
 
