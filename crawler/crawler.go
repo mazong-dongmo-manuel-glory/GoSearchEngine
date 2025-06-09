@@ -15,8 +15,8 @@ var lock sync.Mutex
 
 var visited = make(map[string]bool)
 
-const MaxDomainSize = 1000000
-const MaxQueueSize = 10000
+const MaxDomainSize = 1000
+const MaxQueueSize = 40000
 const MinSize = 1000
 const MaxVisitedSize = 10000
 
@@ -104,30 +104,31 @@ func QeueHandler() {
 		return
 	}
 	for {
-		fmt.Println()
-		fmt.Println()
 
-		time.Sleep(20 * time.Second)
+		time.Sleep(5 * time.Second)
+		fmt.Println()
+		fmt.Println()
 		fmt.Printf("Queue size : %v\n", len(queue))
 		fmt.Printf("Domains size : %v\n", domains.Size())
 		fmt.Println()
-
 		fmt.Println()
+		lock.Lock()
 		if domains.Size() > MaxDomainSize {
 			domains = Domains{}
 		}
 		if len(visited) > MaxVisitedSize {
 			visited = make(map[string]bool)
 		}
-		if len(queue) > MaxQueueSize+MinSize {
-			urlToStore := queue[:MaxQueueSize-MinSize-1]
+		if len(queue) > MaxQueueSize {
+			urlToStore := queue[:len(queue)-1]
 			storage.StoreQueue(urlToStore)
-			queue = queue[MaxQueueSize-MinSize-1:]
+			queue = queue[len(queue)-1:]
 
 		} else if len(queue) > MinSize {
 			newUrlToQueue := storage.GetQueue(MinSize)
 			queue = append(queue, newUrlToQueue...)
 		}
+		lock.Unlock()
 
 	}
 }

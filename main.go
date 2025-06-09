@@ -70,7 +70,7 @@ func main() {
 		"https://www.monuments-nationaux.fr",
 	}
 	crawler.Init(sitesFrancophones)
-	numberCrawlers := 10
+	numberCrawlers := 20
 	wg.Add(numberCrawlers)
 	go crawler.QeueHandler()
 	for i := 0; i < numberCrawlers; i++ {

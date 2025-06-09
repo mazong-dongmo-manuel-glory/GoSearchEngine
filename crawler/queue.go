@@ -53,15 +53,15 @@ func GetUrlInQueue() string {
 		}
 
 		timeOfLastGet, ok := domains[domainOfUrl]
-		if ok && time.Since(timeOfLastGet) < MinTimeBetweenCrawl {
+		if ok && time.Now().Sub(timeOfLastGet) < MinTimeBetweenCrawl {
 			// Trop récent, on le remet à la fin
 			queue = append(queue, url)
 			continue
+		} else {
+			domains[domainOfUrl] = time.Now()
+			return url
 		}
-
 		// Ok pour traitement
-		domains[domainOfUrl] = time.Now()
-		return url
 	}
 
 	// Aucun URL n'est disponible
