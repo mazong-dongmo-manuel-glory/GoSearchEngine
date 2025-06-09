@@ -44,6 +44,7 @@ func (cr *Crawler) Crawl(id int) {
 		urlToCrawl = strings.TrimSpace(urlToCrawl)
 
 		if urlToCrawl == "" {
+			fmt.Println("Queue is empty")
 			time.Sleep(1 * time.Second)
 			continue
 		}
@@ -92,6 +93,16 @@ func (cr *Crawler) Crawl(id int) {
 
 		}
 	}
+	fmt.Println()
+	fmt.Println()
+	fmt.Println()
+	fmt.Println()
+
+	fmt.Printf("Crawler(%v) is done\n", id)
+	fmt.Println()
+	fmt.Println()
+	fmt.Println()
+	fmt.Println()
 
 }
 func QeueHandler() {
@@ -107,19 +118,20 @@ func QeueHandler() {
 		fmt.Println()
 		fmt.Printf("Queue size : %v\n", len(queue))
 		fmt.Printf("Domains size : %v\n", domains.Size())
+		fmt.Printf("Visited size : %v\n", len(visited))
 		fmt.Println()
 		fmt.Println()
 		lock.Lock()
-		if domains.Size() > MaxDomainSize {
+		if len(domains) > MaxDomainSize {
 			domains = Domains{}
 		}
 		if len(visited) > MaxVisitedSize {
 			visited = make(map[string]bool)
 		}
 		if len(queue) > MaxQueueSize {
-			urlToStore := queue[:len(queue)-1]
+			urlToStore := queue[len(queue)-(MinSize*2):]
 			storage.StoreQueue(urlToStore)
-			queue = queue[len(queue)-1:]
+			queue = queue[:len(queue)-(MinSize*2)]
 
 		} else if len(queue) <= MinSize {
 			newUrlToQueue := storage.GetQueue(MinSize)

@@ -7,7 +7,7 @@ import (
 
 var queue = Queue{}
 
-const MinTimeBetweenCrawl = 1 * time.Second
+const MinTimeBetweenCrawl = 10 * time.Second
 
 type Domains map[string]time.Time
 type Queue []string
