@@ -72,7 +72,7 @@ func main() {
 	crawler.Init(sitesFrancophones)
 	numberCrawlers := 10
 	wg.Add(numberCrawlers)
-	go crawler.DomainHandler()
+	go crawler.QeueHandler()
 	for i := 0; i < numberCrawlers; i++ {
 		wg.Add(1)
 

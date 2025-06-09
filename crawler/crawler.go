@@ -12,13 +12,16 @@ import (
 )
 
 var lock sync.Mutex
-var domains = db.Domains{}
-var visited = make(map[string]bool)
-var dbName = "search_engine"
 
-const MaxSizeVisitedUrl = 10000
-const MaxSizeUrlInDomain = 20
-const MaxDomain = 100
+var visited = make(map[string]bool)
+
+const MaxDomainSize = 1000000
+const MaxQueueSize = 10000
+const MinSize = 1000
+const MaxVisitedSize = 10000
+
+var domains = Domains{}
+var dbName = "search_engine"
 
 type Crawler struct{}
 
@@ -27,8 +30,10 @@ func (cr *Crawler) Crawl(id int) {
 	rb := &parser.RobotTxt{}
 	storage, err := db.NewStorage(dbName)
 	if err != nil {
+		panic(err)
 		return
 	}
+
 	for domains.Size() > 0 {
 		lock.Lock()
 		if domains.Size() == 0 {
@@ -37,7 +42,7 @@ func (cr *Crawler) Crawl(id int) {
 		}
 
 		// Récupère une URL et la retire de la file
-		urlToCrawl := domains.GetUrlIn()
+		urlToCrawl := GetUrlInQueue()
 		visited[urlToCrawl] = true
 		lock.Unlock()
 		urlToCrawl = strings.TrimSpace(urlToCrawl)
@@ -82,8 +87,8 @@ func (cr *Crawler) Crawl(id int) {
 		for url, _ := range p.Url {
 			lock.Lock()
 			_, isVisited := visited[url]
-			if !isVisited && rb.CheckIfIsDisAllowPath(url) == false && len(domains) < MaxDomain {
-				domains.AddUrl(url)
+			if !isVisited && rb.CheckIfIsDisAllowPath(url) == false {
+				AddNewUrlInQueue(url)
 
 			}
 			lock.Unlock()
@@ -91,39 +96,44 @@ func (cr *Crawler) Crawl(id int) {
 		}
 	}
 
+}
+func QeueHandler() {
+	storage, err := db.NewStorage(dbName)
+	if err != nil {
+		panic(err)
+		return
+	}
+	for {
+		fmt.Println()
+		fmt.Println()
+
+		time.Sleep(20 * time.Second)
+		fmt.Printf("Queue size : %v\n", len(queue))
+		fmt.Printf("Domains size : %v\n", domains.Size())
+		fmt.Println()
+
+		fmt.Println()
+		if domains.Size() > MaxDomainSize {
+			domains = Domains{}
+		}
+		if len(visited) > MaxVisitedSize {
+			visited = make(map[string]bool)
+		}
+		if len(queue) > MaxQueueSize+MinSize {
+			urlToStore := queue[:MaxQueueSize-MinSize-1]
+			storage.StoreQueue(urlToStore)
+			queue = queue[MaxQueueSize-MinSize-1:]
+
+		} else if len(queue) > MinSize {
+			newUrlToQueue := storage.GetQueue(MinSize)
+			queue = append(queue, newUrlToQueue...)
+		}
+
+	}
 }
 
 func Init(urls []string) {
 	for _, url := range urls {
-		domains.AddUrl(url)
-	}
-}
-
-func DomainHandler() {
-
-	storage, err := db.NewStorage(dbName)
-	if err != nil {
-		return
-	}
-	for {
-		time.Sleep(time.Second * 10)
-		lock.Lock()
-		if domains.Size() == 0 {
-			lock.Unlock()
-			break
-		}
-		if len(visited) > MaxSizeVisitedUrl {
-			visited = make(map[string]bool)
-		}
-		for _, domain := range domains {
-			if domain != nil && len(domain.Urls) > MaxSizeUrlInDomain {
-				urlToStore := domain.Urls[len(domain.Urls)-(MaxSizeUrlInDomain-4):]
-				domain.Urls = domain.Urls[:len(domain.Urls)-(MaxSizeUrlInDomain-4)]
-				storage.Store(urlToStore)
-			}
-		}
-
-		lock.Unlock()
-
+		AddNewUrlInQueue(url)
 	}
 }

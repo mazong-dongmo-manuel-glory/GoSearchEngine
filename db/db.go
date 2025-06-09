@@ -77,3 +77,54 @@ func (s *Storage) Store(d interface{}) {
 	}
 
 }
+func (s *Storage) StoreQueue(urls []string) {
+
+	docs := make([]interface{}, len(urls))
+	for i, url := range urls {
+		docs[i] = UrlQueuElement{Url: url}
+
+	}
+	_, err := s.UrlQueueCollection.InsertMany(context.Background(), docs)
+	if err != nil {
+		panic(err)
+		return
+	}
+}
+func (s *Storage) GetQueue(size int64) []string {
+	ctx := context.Background()
+
+	// Options pour trier par _id et limiter le nombre de résultats
+	findOptions := options.Find().
+		SetSort(bson.D{{Key: "_id", Value: 1}}).
+		SetLimit(size)
+
+	// Trouver les documents avec la limite spécifiée
+	cursor, err := s.UrlQueueCollection.Find(ctx, bson.D{}, findOptions)
+	if err != nil {
+		return nil
+	}
+	defer cursor.Close(ctx)
+
+	var results []UrlQueuElement
+	if err := cursor.All(ctx, &results); err != nil {
+		return nil
+	}
+
+	// Extraire les URLs
+	urls := make([]string, len(results))
+	for i, doc := range results {
+		urls[i] = doc.Url
+	}
+
+	// Supprimer les documents récupérés
+	if len(urls) > 0 {
+		_, err := s.UrlQueueCollection.DeleteMany(ctx, bson.D{
+			{Key: "url", Value: bson.D{{Key: "$in", Value: urls}}},
+		})
+		if err != nil {
+			return nil
+		}
+	}
+
+	return urls
+}
