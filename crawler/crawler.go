@@ -15,10 +15,10 @@ var lock sync.Mutex
 
 var visited = make(map[string]bool)
 
-const MaxDomainSize = 10000
-const MaxQueueSize = 20000
-const MinSize = 9000
-const MaxVisitedSize = 10000
+const MaxDomainSize = 1000
+const MaxQueueSize = 10000
+const MinSize = 5000
+const MaxVisitedSize = 1000
 
 var domains = Domains{}
 var dbName = "search_engine"
@@ -116,7 +116,8 @@ func QeueHandler() {
 			storage.StoreQueue(urlToStore)
 			queue = queue[:MaxQueueSize-(MinSize*2)]
 
-		} else if len(queue) <= MinSize {
+		}
+		if len(queue) <= MinSize {
 			newUrlToQueue := storage.GetQueue(MinSize * 2)
 			queue = append(queue, newUrlToQueue...)
 		}
