@@ -88,7 +88,6 @@ func (s *Storage) StoreQueue(urls []string) {
 	_, err := s.UrlQueueCollection.InsertMany(context.Background(), docs)
 	if err != nil {
 		panic(err)
-		return
 	}
 }
 func (s *Storage) GetQueue(size int64) []string {

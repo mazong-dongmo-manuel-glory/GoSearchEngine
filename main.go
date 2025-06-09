@@ -83,7 +83,6 @@ func main() {
 			cr.Crawl(i)
 		}()
 	}
-
 	wg.Wait()
 
 }

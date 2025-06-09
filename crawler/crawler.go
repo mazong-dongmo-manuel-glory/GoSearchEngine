@@ -16,8 +16,8 @@ var lock sync.Mutex
 var visited = make(map[string]bool)
 
 const MaxDomainSize = 10000
-const MaxQueueSize = 40000
-const MinSize = 10000
+const MaxQueueSize = 20000
+const MinSize = 9000
 const MaxVisitedSize = 10000
 
 var domains = Domains{}
@@ -53,9 +53,9 @@ func (cr *Crawler) Crawl(id int) {
 			//fmt.Printf("Erreur lors de la récupération de l'URL : %v\n", err)
 			continue
 		}
+		defer resp.Body.Close()
 		if resp.StatusCode != 200 && !strings.Contains(resp.Header.Get("Content-Type"), "text/html") {
 			//fmt.Printf("Le status n'est pas correct ou le contenu n'est pas du texte : %v\n", resp.StatusCode)
-			resp.Body.Close()
 			continue
 		}
 		data, err := io.ReadAll(resp.Body)
@@ -85,15 +85,6 @@ func (cr *Crawler) Crawl(id int) {
 
 		}
 	}
-	fmt.Println()
-	fmt.Println()
-	fmt.Println()
-	fmt.Println()
-	fmt.Printf("Crawler(%v) is done\n", id)
-	fmt.Println()
-	fmt.Println()
-	fmt.Println()
-	fmt.Println()
 
 }
 func QeueHandler() {
@@ -113,9 +104,11 @@ func QeueHandler() {
 		fmt.Println()
 		lock.Lock()
 		if len(domains) > MaxDomainSize {
-			domains = Domains{}
+			domains = nil
+			domains = make(Domains)
 		}
 		if len(visited) > MaxVisitedSize {
+			visited = nil
 			visited = make(map[string]bool)
 		}
 		if len(queue) > MaxQueueSize {
