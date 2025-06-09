@@ -39,19 +39,10 @@ func AddNewUrlInQueue(url string) {
 
 }
 func GetUrlInQueue() string {
-	initialQueueLength := len(queue)
 
-	for i := 0; i < initialQueueLength; i++ {
+	for len(queue) > 0 {
 		url := queue.Get()
-		if url == "" {
-			return ""
-		}
-
 		domainOfUrl := getHostname(url)
-		if domainOfUrl == "" {
-			continue
-		}
-
 		timeOfLastGet, ok := domains[domainOfUrl]
 		if ok && time.Now().Sub(timeOfLastGet) < MinTimeBetweenCrawl {
 			// Trop récent, on le remet à la fin

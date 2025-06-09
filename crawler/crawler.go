@@ -17,8 +17,8 @@ var visited = make(map[string]bool)
 
 const MaxDomainSize = 1000
 const MaxQueueSize = 40000
-const MinSize = 1000
-const MaxVisitedSize = 10000
+const MinSize = 10000
+const MaxVisitedSize = 1000
 
 var domains = Domains{}
 var dbName = "search_engine"
@@ -34,20 +34,17 @@ func (cr *Crawler) Crawl(id int) {
 		return
 	}
 
-	for domains.Size() > 0 {
-		lock.Lock()
-		if domains.Size() == 0 {
-			lock.Unlock()
-			break
-		}
+	for len(queue) > 0 {
 
 		// Récupère une URL et la retire de la file
+		lock.Lock()
 		urlToCrawl := GetUrlInQueue()
 		visited[urlToCrawl] = true
 		lock.Unlock()
 		urlToCrawl = strings.TrimSpace(urlToCrawl)
 
 		if urlToCrawl == "" {
+			time.Sleep(1 * time.Second)
 			continue
 		}
 
@@ -124,7 +121,7 @@ func QeueHandler() {
 			storage.StoreQueue(urlToStore)
 			queue = queue[len(queue)-1:]
 
-		} else if len(queue) > MinSize {
+		} else if len(queue) <= MinSize {
 			newUrlToQueue := storage.GetQueue(MinSize)
 			queue = append(queue, newUrlToQueue...)
 		}
