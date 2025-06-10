@@ -46,7 +46,19 @@ func NewQueue() *Queue {
 
 func (q *Queue) AddUrl(urls []string) {
 	q.mu.Lock()
-	defer q.mu.Unlock()
+
+	defer func() {
+		if len(q.Urls) > MaxSizeQueue {
+			q.Urls = q.Urls[:MaxSizeQueue]
+		}
+		if len(q.Domains) > MaxSizeDomain {
+			q.Domains = make(map[string]*Domain)
+		}
+		if len(q.Visited) > MaxSizeVisited {
+			q.Visited = make(map[string]interface{})
+		}
+		q.mu.Unlock()
+	}()
 	for _, url := range urls {
 		if _, ok := q.Visited[url]; ok {
 			continue
@@ -69,15 +81,7 @@ func (q *Queue) AddUrl(urls []string) {
 func (q *Queue) GetUrl() string {
 	q.mu.Lock()
 	defer q.mu.Unlock()
-	if len(q.Urls) > MaxSizeQueue {
-		q.Urls = q.Urls[:MaxSizeQueue]
-	}
-	if len(q.Domains) > MaxSizeDomain {
-		q.Domains = make(map[string]*Domain)
-	}
-	if len(q.Visited) > MaxSizeVisited {
-		q.Visited = make(map[string]interface{})
-	}
+
 	if len(q.Urls) == 0 {
 		time.Sleep(1 * time.Second)
 		return ""
@@ -109,7 +113,17 @@ func (q *Queue) GetUrl() string {
 			}
 		}
 
+		// Parce que je supprime les domaines a partir d'un moment ici je m'assure que le domaine existe
+
+		if _, ok := q.Domains[urlParsed.Host]; !ok {
+			q.Domains[urlParsed.Host] = &Domain{
+				RobotTxt:        &parser.RobotTxt{},
+				LastVisitedTime: time.Now(),
+			}
+			q.Domains[urlParsed.Host].RobotTxt.GetDisallowPath(url)
+		}
 		q.Urls = q.Urls[1:]
+
 		q.Domains[urlParsed.Host].LastVisitedTime = time.Now()
 		q.Visited[url] = nil
 		return url
@@ -130,6 +144,7 @@ func (q *Queue) QueueHandler() {
 		defer Wg.Done()
 		for {
 			url := <-urlChanReceiver
+
 			q.AddUrl(url)
 		}
 
