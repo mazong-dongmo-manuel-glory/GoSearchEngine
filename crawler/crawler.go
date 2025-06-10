@@ -5,6 +5,7 @@ import (
 	"io"
 	"net/http"
 	url2 "net/url"
+	"search_egine/db"
 	"search_egine/parser"
 	"strings"
 	"sync"
@@ -13,6 +14,9 @@ import (
 
 const MinTimeBetweenRequest = 20 * time.Second
 const MaxIterationForGetUrl = 50000
+const MaxSizeQueue = 100000
+const MaxSizeDomain = 10000
+const MaxSizeVisited = 1000000
 
 var urlChanSender = make(chan string, 1)
 var urlChanReceiver = make(chan []string, 1)
@@ -65,6 +69,15 @@ func (q *Queue) AddUrl(urls []string) {
 func (q *Queue) GetUrl() string {
 	q.mu.Lock()
 	defer q.mu.Unlock()
+	if len(q.Urls) > MaxSizeQueue {
+		q.Urls = q.Urls[:MaxSizeQueue]
+	}
+	if len(q.Domains) > MaxSizeDomain {
+		q.Domains = make(map[string]*Domain)
+	}
+	if len(q.Visited) > MaxSizeVisited {
+		q.Visited = make(map[string]interface{})
+	}
 	if len(q.Urls) == 0 {
 		time.Sleep(1 * time.Second)
 		return ""
@@ -125,6 +138,10 @@ func (q *Queue) QueueHandler() {
 }
 
 func CrawlerProcess(id int) {
+	storage, err := db.NewStorage("search_engine")
+	if err != nil {
+		return
+	}
 	Wg.Add(1)
 	defer Wg.Done()
 	for {
@@ -148,6 +165,12 @@ func CrawlerProcess(id int) {
 		p := parser.NewParser(dataStr, url)
 		p.Traverse()
 		urls := make([]string, 0)
+		page := db.Page{
+			Url:     url,
+			Content: p.Content,
+			Urls:    p.Url,
+		}
+		storage.Store(&page)
 		for url, _ := range p.Url {
 			urls = append(urls, url)
 		}
