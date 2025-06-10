@@ -5,18 +5,17 @@ import (
 	"io"
 	"net/http"
 	url2 "net/url"
-	"search_egine/db"
 	"search_egine/parser"
 	"strings"
 	"sync"
 	"time"
 )
 
-const MinTimeBetweenRequest = 10 * time.Second
-const MaxIterationForGetUrl = 1000
+const MinTimeBetweenRequest = 20 * time.Second
+const MaxIterationForGetUrl = 50000
 
-var urlChanSender = make(chan string, 100)
-var urlChanReceiver = make(chan []string, 100)
+var urlChanSender = make(chan string, 1)
+var urlChanReceiver = make(chan []string, 1)
 var Wg = &sync.WaitGroup{}
 
 type Queue struct {
@@ -24,6 +23,7 @@ type Queue struct {
 	Visited map[string]interface{}
 	Domains map[string]*Domain
 	mu      sync.Mutex
+	start   time.Time
 }
 type Domain struct {
 	RobotTxt        *parser.RobotTxt
@@ -36,6 +36,7 @@ func NewQueue() *Queue {
 		Visited: make(map[string]interface{}),
 		Domains: make(map[string]*Domain),
 		mu:      sync.Mutex{},
+		start:   time.Now(),
 	}
 }
 
@@ -61,76 +62,47 @@ func (q *Queue) AddUrl(urls []string) {
 	}
 
 }
-
-// GetUrl corrigée pour récupérer une URL unique et prête à être crawlée
 func (q *Queue) GetUrl() string {
 	q.mu.Lock()
 	defer q.mu.Unlock()
+	if len(q.Urls) == 0 {
+		time.Sleep(1 * time.Second)
+		return ""
+	}
 
-	// Itérer un nombre limité de fois pour trouver une URL appropriée
-	// Ceci évite de boucler indéfiniment si toutes les URLs sont temporairement non-crawlables
-	for i := 0; i < MaxIterationForGetUrl; i++ {
-		// Si la file est vide, rien à récupérer pour le moment
-		if len(q.Urls) == 0 {
-			// Pas de temps de sommeil ici, le code appelant (ex: QueueHandler) gérera l'attente
-			return ""
-		}
+	url := q.Urls[0]
 
-		// Récupérer l'URL candidate du début de la file
-		currentURL := q.Urls[0]
-
-		// 1. Vérifier si l'URL a déjà été visitée (ou est en cours de traitement ailleurs)
-		// (Idéalement, AddUrl devrait déjà empêcher les duplicatas, mais cette re-vérification est une sécurité)
-		if _, ok := q.Visited[currentURL]; ok {
-			// Si déjà visitée, la déplacer à la fin de la file et passer à l'URL suivante
-			q.Urls = q.Urls[1:]
-			q.Urls = append(q.Urls, currentURL)
-			continue // Passer à l'itération suivante de la boucle
-		}
-
-		// 2. Analyser l'URL pour extraire le domaine (nécessaire pour la limitation de débit)
-		urlParsed, err := url2.Parse(currentURL)
-		if err != nil {
-			fmt.Printf("GetUrl: Erreur d'analyse d'URL '%s': %v\n", currentURL, err)
-			// Si l'URL est malformée, la déplacer à la fin de la file et passer à l'URL suivante
-			q.Urls = q.Urls[1:]
-			q.Urls = append(q.Urls, currentURL)
-			continue // Passer à l'itération suivante de la boucle
-		}
-
-		host := urlParsed.Host
-		// Initialiser le domaine si c'est la première fois que nous le rencontrons
-		if q.Domains[host] == nil {
-			q.Domains[host] = &Domain{
-				LastVisitedTime: time.Time{}, // Temps zéro, indique qu'il n'a jamais été visité
-			}
-		}
-
-		// 3. Vérifier la limitation de débit pour ce domaine
-		// On ne vérifie que si le domaine a déjà été visité (LastVisitedTime n'est pas le temps zéro)
-		if !q.Domains[host].LastVisitedTime.IsZero() && time.Now().Sub(q.Domains[host].LastVisitedTime) < MinTimeBetweenRequest {
-			// Si le délai minimum n'est pas écoulé, déplacer l'URL à la fin de la file et passer à l'URL suivante
-
-			q.Urls = append(q.Urls, currentURL)
-			continue // Passer à l'itération suivante de la boucle
-		}
-		if q.Domains[host].RobotTxt.CheckIfIsDisAllowPath(currentURL) {
+	for i := 0; i < MaxIterationForGetUrl && i < len(q.Urls); i++ {
+		url = q.Urls[0]
+		if _, ok := q.Visited[url]; ok {
 			q.Urls = q.Urls[1:]
 			continue
 		}
-		// Si toutes les vérifications passent, cette URL est prête à être retournée
-		// Mettre à jour le temps de la dernière visite pour ce domaine
-		q.Domains[host].LastVisitedTime = time.Now()
-		// Retirer l'URL de la file d'attente (car elle est maintenant "prise")
+		urlParsed, err := url2.Parse(q.Urls[0])
+		if err != nil {
+			q.Urls = q.Urls[1:]
+			continue
+
+		}
+		if d, ok := q.Domains[urlParsed.Host]; ok {
+			if time.Now().Sub(d.LastVisitedTime) < MinTimeBetweenRequest && time.Now().Sub(q.start) > time.Second*20 {
+				q.Urls = q.Urls[1:]
+				q.Urls = append(q.Urls, url)
+				continue
+			}
+			if d.RobotTxt.CheckIfIsDisAllowPath(url) {
+				q.Urls = q.Urls[1:]
+				continue
+			}
+		}
+
 		q.Urls = q.Urls[1:]
-		q.Visited[currentURL] = nil // Marquer l'URL comme visitée'
-
-		return currentURL // Retourner l'URL valide
+		q.Domains[urlParsed.Host].LastVisitedTime = time.Now()
+		q.Visited[url] = nil
+		return url
 	}
+	return url
 
-	// Si la boucle se termine sans trouver d'URL appropriée (ex: toutes sont limitées ou invalides)
-	// Ne pas bloquer ici, laisser l'appelant décider quoi faire.
-	return "" // Aucune URL appropriée trouvée pour le moment
 }
 func (q *Queue) QueueHandler() {
 	Wg.Add(2)
@@ -155,44 +127,32 @@ func (q *Queue) QueueHandler() {
 func CrawlerProcess(id int) {
 	Wg.Add(1)
 	defer Wg.Done()
-	storage, err := db.NewStorage("search_engine")
-	if err != nil {
-		fmt.Printf("Error %v\n", err)
-		return
-	}
-	defer storage.Close()
-
 	for {
-		select {
-		case url := <-urlChanSender:
-			if url == "" {
-				continue
-			}
-			fmt.Printf("Crawler %d : %s\n", id, url)
-			resp, err := http.Get(url)
-			if err != nil {
+		url := <-urlChanSender
+		fmt.Printf("Crawler %d : %s\n", id, url)
+		resp, err := http.Get(url)
+		if err != nil {
 
-				continue
-			}
-			if resp.StatusCode != 200 || !strings.Contains(resp.Header.Get("Content-Type"), "text/html") {
-				resp.Body.Close()
-				continue
-			}
-			data, err := io.ReadAll(resp.Body)
-			if err != nil {
-				resp.Body.Close()
-				continue
-			}
-			dataStr := string(data)
-			p := parser.NewParser(dataStr, url)
-			p.Traverse()
-			storage.Store(p)
-			urls := make([]string, 0)
-			for url, _ := range p.Url {
-				urls = append(urls, url)
-			}
-			urlChanReceiver <- urls
+			continue
 		}
+		if resp.StatusCode != 200 || !strings.Contains(resp.Header.Get("Content-Type"), "text/html") {
+			resp.Body.Close()
+			continue
+		}
+		data, err := io.ReadAll(resp.Body)
+		if err != nil {
+			resp.Body.Close()
+			continue
+		}
+		dataStr := string(data)
+		p := parser.NewParser(dataStr, url)
+		p.Traverse()
+		urls := make([]string, 0)
+		for url, _ := range p.Url {
+			urls = append(urls, url)
+		}
+		urlChanReceiver <- urls
+
 	}
 
 }

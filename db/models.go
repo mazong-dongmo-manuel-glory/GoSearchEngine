@@ -5,3 +5,5 @@ type Page struct {
 	Content string            `bson:"content"`
 	Urls    map[string]string `bson:"urls"`
 }
+
+func (p *Page) Save() {}
