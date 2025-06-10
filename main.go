@@ -69,20 +69,12 @@ func main() {
 		"https://archeologie.culture.fr",
 		"https://www.monuments-nationaux.fr",
 	}
-	crawler.Init(sitesFrancophones)
-	wg.Add(1)
-	go crawler.QeueHandler()
-	numberCrawlers := 12 // Number of concurrent crawlers
+	queue := crawler.NewQueue()
+	queue.AddUrl(sitesFrancophones)
+	go queue.QueueHandler()
+	for i := 0; i < 10; i++ {
 
-	wg.Add(numberCrawlers)
-
-	for i := 0; i < numberCrawlers; i++ {
-		go func() {
-			defer wg.Done()
-			cr := &crawler.Crawler{}
-			cr.Crawl(i)
-		}()
+		go crawler.CrawlerProcess(i)
 	}
-	wg.Wait()
-
+	crawler.Wg.Wait()
 }
