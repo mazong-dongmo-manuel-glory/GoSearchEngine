@@ -13,10 +13,8 @@ import (
 )
 
 const MinTimeBetweenRequest = 20 * time.Second
-const MaxIterationForGetUrl = 50000
-const MaxSizeQueue = 100000
-const MaxSizeDomain = 10000
-const MaxSizeVisited = 1000000
+const MaxIterationForGetUrl = 100000
+const MaxSizeQueue = 1000000
 
 var urlChanSender = make(chan string, 1)
 var urlChanReceiver = make(chan []string, 1)
@@ -50,13 +48,10 @@ func (q *Queue) AddUrl(urls []string) {
 	defer func() {
 		if len(q.Urls) > MaxSizeQueue {
 			q.Urls = q.Urls[:MaxSizeQueue]
-		}
-		if len(q.Domains) > MaxSizeDomain {
+			q.Visited = make(map[string]interface{})
 			q.Domains = make(map[string]*Domain)
 		}
-		if len(q.Visited) > MaxSizeVisited {
-			q.Visited = make(map[string]interface{})
-		}
+
 		q.mu.Unlock()
 	}()
 	for _, url := range urls {

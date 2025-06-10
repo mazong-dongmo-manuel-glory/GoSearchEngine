@@ -73,7 +73,7 @@ func main() {
 	queue.AddUrl(sitesFrancophones)
 	crawler.Wg.Add(1)
 	go queue.QueueHandler()
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 20; i++ {
 		go crawler.CrawlerProcess(i)
 	}
 	crawler.Wg.Wait()
