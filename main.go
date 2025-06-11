@@ -3,6 +3,7 @@ package main
 import (
 	"search_egine/crawler"
 	"sync"
+	"time"
 )
 
 var wg sync.WaitGroup
@@ -76,4 +77,5 @@ func main() {
 		go crawler.CrawlerProcess(i)
 	}
 	crawler.Wg.Wait()
+	time.Sleep(10 * time.Second)
 }
