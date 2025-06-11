@@ -3,7 +3,6 @@ package main
 import (
 	"search_egine/crawler"
 	"sync"
-	"time"
 )
 
 var wg sync.WaitGroup
@@ -72,10 +71,10 @@ func main() {
 	}
 	queue := crawler.NewQueue()
 	queue.AddUrl(sitesFrancophones)
+	crawler.Wg.Add(1)
 	go queue.QueueHandler()
 	for i := 0; i < 20; i++ {
 		go crawler.CrawlerProcess(i)
 	}
 	crawler.Wg.Wait()
-	time.Sleep(10 * time.Second)
 }
