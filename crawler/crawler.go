@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const MinTimeBetweenRequest = 20 * time.Second
+const MinTimeBetweenRequest = 40 * time.Second
 const MaxIterationForGetUrl = 100000
 const MaxSizeQueue = 1000000
 
@@ -47,7 +47,7 @@ func (q *Queue) AddUrl(urls []string) {
 
 	defer func() {
 		if len(q.Urls) > MaxSizeQueue {
-			q.Urls = q.Urls[:MaxSizeQueue-100]
+			q.Urls = q.Urls[MaxSizeQueue-10000:]
 			q.Visited = make(map[string]interface{})
 			q.Domains = make(map[string]*Domain)
 		}
@@ -78,7 +78,6 @@ func (q *Queue) GetUrl() string {
 	defer q.mu.Unlock()
 
 	if len(q.Urls) == 0 {
-		time.Sleep(1 * time.Second)
 		return ""
 	}
 
@@ -97,9 +96,11 @@ func (q *Queue) GetUrl() string {
 
 		}
 		if d, ok := q.Domains[urlParsed.Host]; ok {
-			if time.Now().Sub(d.LastVisitedTime) < MinTimeBetweenRequest && time.Now().Sub(q.start) > time.Second*20 {
+			if time.Now().Sub(d.LastVisitedTime) < MinTimeBetweenRequest && time.Now().Sub(q.start) > time.Second*5 {
+
 				q.Urls = q.Urls[1:]
 				q.Urls = append(q.Urls, url)
+
 				continue
 			}
 			if d.RobotTxt.CheckIfIsDisAllowPath(url) {
