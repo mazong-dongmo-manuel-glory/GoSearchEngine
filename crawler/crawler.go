@@ -47,7 +47,7 @@ func (q *Queue) AddUrl(urls []string) {
 
 	defer func() {
 		if len(q.Urls) > MaxSizeQueue {
-			q.Urls = q.Urls[:MaxSizeQueue]
+			q.Urls = q.Urls[:MaxSizeQueue-100]
 			q.Visited = make(map[string]interface{})
 			q.Domains = make(map[string]*Domain)
 		}
