@@ -97,6 +97,7 @@ func (q *Queue) GetUrl() string {
 		if d, ok := q.Domains[urlParsed.Host]; ok {
 			if time.Now().Sub(d.LastVisitedTime) < MinTimeBetweenRequest && time.Now().Sub(q.start) > time.Second*10 {
 				q.Urls = q.Urls[1:]
+				q.Urls = append(q.Urls, url)
 				continue
 			}
 			if d.RobotTxt.CheckIfIsDisAllowPath(url) {
@@ -151,11 +152,15 @@ func CrawlerProcess(id int) {
 	}
 	Wg.Add(1)
 	defer Wg.Done()
+	lastUrl := ""
 	for {
 		url := <-urlChanSender
-		if url == "" {
+
+		if url == "" || url == lastUrl {
 			time.Sleep(time.Second * 1)
+			continue
 		}
+		lastUrl = url
 		fmt.Printf("Crawler %d : %s\n", id, url)
 		resp, err := http.Get(url)
 		if err != nil {
