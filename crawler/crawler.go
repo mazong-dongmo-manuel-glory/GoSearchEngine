@@ -12,7 +12,7 @@ import (
 	"time"
 )
 
-const MinTimeBetweenRequest = 40 * time.Second
+const MinTimeBetweenRequest = 10 * time.Second
 const MaxIterationForGetUrl = 100000
 const MaxSizeQueue = 1000000
 
@@ -96,10 +96,7 @@ func (q *Queue) GetUrl() string {
 		}
 		if d, ok := q.Domains[urlParsed.Host]; ok {
 			if time.Now().Sub(d.LastVisitedTime) < MinTimeBetweenRequest && time.Now().Sub(q.start) > time.Second*10 {
-
 				q.Urls = q.Urls[1:]
-				q.Urls = append(q.Urls, url)
-
 				continue
 			}
 			if d.RobotTxt.CheckIfIsDisAllowPath(url) {
