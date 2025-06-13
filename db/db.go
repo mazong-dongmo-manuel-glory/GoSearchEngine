@@ -147,7 +147,7 @@ func (s *Storage) GetWordPagesByWords(words []string, limit int64) ([]WordPage, 
 	findOptions.SetSort(bson.D{{Key: "tfidf", Value: -1}}) // Trier par TF-IDF descendant
 	findOptions.SetLimit(limit)                            // Limiter le nombre de résultats par mot si nécessaire
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	cursor, err := collection.Find(ctx, filter, findOptions)
