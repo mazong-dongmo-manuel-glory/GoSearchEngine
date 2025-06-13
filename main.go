@@ -1,14 +1,15 @@
 package main
 
 import (
-	"search_egine/crawler"
+	"github.com/gin-gonic/gin"
+	"search_egine/api"
 	"sync"
 )
 
 var wg sync.WaitGroup
 
 func main() {
-	var sitesFrancophones = []string{
+	/*var sitesFrancophones = []string{
 		// Encyclopédies et ressources éducatives
 		"https://fr.wikipedia.org",
 		"https://fr.wikisource.org",
@@ -68,13 +69,19 @@ func main() {
 		"https://www.archives-nationales.culture.gouv.fr",
 		"https://archeologie.culture.fr",
 		"https://www.monuments-nationaux.fr",
-	}
-	queue := crawler.NewQueue()
+	}*/
+	/*queue := crawler.NewQueue()
 	queue.AddUrl(sitesFrancophones)
 	crawler.Wg.Add(1)
 	go queue.QueueHandler()
 	for i := 0; i < 20; i++ {
 		go crawler.CrawlerProcess(i)
 	}
-	crawler.Wg.Wait()
+	crawler.Wg.Wait()*/
+	//indexation.Indexation()
+	//
+	//
+	router := gin.Default()
+	router.GET("/search", api.SearchHandler)
+	router.Run(":8080")
 }
