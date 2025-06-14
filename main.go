@@ -81,6 +81,5 @@ func main() {
 	//
 	//
 	indexation.ComputePageRank()
-	indexation.Indexation()
 
 }
