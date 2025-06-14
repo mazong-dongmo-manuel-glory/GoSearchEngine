@@ -27,7 +27,7 @@ func NewStorage(dbName string) (*Storage, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27018"))
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func (s *Storage) StoreMany(interfaces []interface{}) {
 func GetPages(storage *Storage, limit int64) []*Page {
 	var pages []*Page
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Minute)
 	defer cancel()
 
 	cursor, err := storage.PageCollection.Find(ctx, bson.D{}, options.Find().SetLimit(limit))
@@ -147,7 +147,7 @@ func (s *Storage) GetWordPagesByWords(words []string, limit int64) ([]WordPage, 
 	findOptions.SetSort(bson.D{{Key: "tfidf", Value: -1}}) // Trier par TF-IDF descendant
 	findOptions.SetLimit(limit)                            // Limiter le nombre de résultats par mot si nécessaire
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 
 	cursor, err := collection.Find(ctx, filter, findOptions)

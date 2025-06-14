@@ -1,8 +1,7 @@
 package main
 
 import (
-	"github.com/gin-gonic/gin"
-	"search_egine/api"
+	"search_egine/indexation"
 	"sync"
 )
 
@@ -81,7 +80,7 @@ func main() {
 	//indexation.Indexation()
 	//
 	//
-	router := gin.Default()
-	router.GET("/search", api.SearchHandler)
-	router.Run(":8080")
+	indexation.ComputePageRank()
+	indexation.Indexation()
+
 }
