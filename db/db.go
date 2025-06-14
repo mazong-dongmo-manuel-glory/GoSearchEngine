@@ -27,7 +27,7 @@ func NewStorage(dbName string) (*Storage, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27017"))
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27018"))
 	if err != nil {
 		return nil, err
 	}
@@ -111,7 +111,7 @@ func (s *Storage) StoreMany(interfaces []interface{}) {
 func GetPages(storage *Storage, limit int64) []*Page {
 	var pages []*Page
 
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Minute)
 	defer cancel()
 
 	cursor, err := storage.PageCollection.Find(ctx, bson.D{}, options.Find().SetLimit(limit))
@@ -171,44 +171,4 @@ func (s *Storage) UpdatePageRank(url string, rank float64) error {
 		bson.M{"$set": bson.M{"pagerank": rank}},
 	)
 	return err
-}
-
-// CountPages retourne le nombre total de pages
-func CountPages(storage *Storage) int {
-	// Implémentation dépendante de votre base de données
-	// Exemple pour SQL :
-	/*
-	   var count int
-	   err := storage.db.QueryRow("SELECT COUNT(*) FROM pages").Scan(&count)
-	   if err != nil {
-	       return 0
-	   }
-	   return count
-	*/
-	return 0 // À implémenter selon votre DB
-}
-
-// GetPagesWithOffset récupère les pages avec LIMIT et OFFSET
-func GetPagesWithOffset(storage *Storage, limit, offset int) []*Page {
-	// Implémentation dépendante de votre base de données
-	// Exemple pour SQL :
-	/*
-	   rows, err := storage.db.Query("SELECT url, content, page_rank FROM pages LIMIT ? OFFSET ?", limit, offset)
-	   if err != nil {
-	       return nil
-	   }
-	   defer rows.Close()
-
-	   var pages []*Page
-	   for rows.Next() {
-	       page := &Page{}
-	       err := rows.Scan(&page.Url, &page.Content, &page.PageRank)
-	       if err != nil {
-	           continue
-	       }
-	       pages = append(pages, page)
-	   }
-	   return pages
-	*/
-	return nil // À implémenter selon votre DB
 }
