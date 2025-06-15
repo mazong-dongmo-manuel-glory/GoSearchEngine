@@ -12,10 +12,15 @@ import (
 	"time"
 )
 
-const MinTimeBetweenRequest = 40 * time.Second
+const MinTimeBetweenRequest = 10 * time.Second
 const MaxIterationForGetUrl = 100000
 const MaxSizeQueue = 1000000
+const MaxSizePage = 10000
 
+var urlChanReceiverIsClosed = false
+var MuSizePage sync.Mutex
+var MuUrlChanReceiver sync.Mutex
+var pageSize int = 0
 var urlChanSender = make(chan string, 1)
 var urlChanReceiver = make(chan []string, 1)
 var Wg = &sync.WaitGroup{}
@@ -99,10 +104,7 @@ func (q *Queue) GetUrl() string {
 
 				q.Urls = q.Urls[1:]
 				q.Urls = append(q.Urls, url)
-<<<<<<< HEAD
-=======
 
->>>>>>> parent of 55463db (final crawler)
 				continue
 			}
 			if d.RobotTxt.CheckIfIsDisAllowPath(url) {
@@ -132,15 +134,23 @@ func (q *Queue) GetUrl() string {
 func (q *Queue) QueueHandler() {
 	Wg.Add(2)
 	go func() {
-		defer Wg.Done()
-		for {
+		defer func() {
+			Wg.Done()
+			fmt.Println("QueueHandler done")
+			close(urlChanSender)
+		}()
+		for pageSize < MaxSizePage {
 			url := q.GetUrl()
 			urlChanSender <- url
 		}
 	}()
 	go func() {
-		defer Wg.Done()
-		for {
+		defer func() {
+			Wg.Done()
+			fmt.Println("QueueHandler done")
+
+		}()
+		for pageSize < MaxSizePage {
 			url := <-urlChanReceiver
 
 			q.AddUrl(url)
@@ -151,50 +161,75 @@ func (q *Queue) QueueHandler() {
 }
 
 func CrawlerProcess(id int) {
-	storage, err := db.NewStorage("search_engine")
+	defer func() {
+		Wg.Done()
+		fmt.Printf("Crawler %d done\n", id)
+	}()
+
+	storage, err := db.NewStorage()
 	if err != nil {
 		return
 	}
-	Wg.Add(1)
-	defer Wg.Done()
+	defer storage.Close()
 	lastUrl := ""
 	for {
-		url := <-urlChanSender
+		select {
+		case url, ok := <-urlChanSender:
+			if !ok {
+				return
+			}
+			if url == "" || url == lastUrl {
+				time.Sleep(time.Second * 1)
+				continue
+			}
+			lastUrl = url
+			fmt.Printf("Crawler %d : %s\n", id, url)
+			resp, err := http.Get(url)
+			if err != nil {
 
-		if url == "" || url == lastUrl {
-			time.Sleep(time.Second * 1)
-			continue
-		}
-		lastUrl = url
-		fmt.Printf("Crawler %d : %s\n", id, url)
-		resp, err := http.Get(url)
-		if err != nil {
+				continue
+			}
+			if resp.StatusCode != 200 || !strings.Contains(resp.Header.Get("Content-Type"), "text/html") {
+				resp.Body.Close()
+				continue
+			}
+			data, err := io.ReadAll(resp.Body)
+			if err != nil {
+				resp.Body.Close()
+				continue
+			}
+			dataStr := string(data)
+			p := parser.NewParser(dataStr, url)
+			p.Traverse()
+			urls := make([]string, 0)
+			page := db.Page{
+				Url:     url,
+				Content: p.Content,
+				Urls:    p.Url,
+			}
+			storage.Store(&page)
 
-			continue
+			for url, _ := range p.Url {
+				urls = append(urls, url)
+			}
+			MuSizePage.Lock()
+			if urlChanReceiverIsClosed {
+				//fmt.Printf("Max size page reached %v\n", id)
+				MuSizePage.Unlock()
+				return
+			}
+			urlChanReceiver <- urls
+			pageSize++
+			if pageSize > MaxSizePage {
+				//fmt.Printf("Max size page reached %v\n", id)
+				urlChanReceiverIsClosed = true
+				close(urlChanReceiver)
+
+				MuSizePage.Unlock()
+				return
+			}
+			MuSizePage.Unlock()
 		}
-		if resp.StatusCode != 200 || !strings.Contains(resp.Header.Get("Content-Type"), "text/html") {
-			resp.Body.Close()
-			continue
-		}
-		data, err := io.ReadAll(resp.Body)
-		if err != nil {
-			resp.Body.Close()
-			continue
-		}
-		dataStr := string(data)
-		p := parser.NewParser(dataStr, url)
-		p.Traverse()
-		urls := make([]string, 0)
-		page := db.Page{
-			Url:     url,
-			Content: p.Content,
-			Urls:    p.Url,
-		}
-		storage.Store(&page)
-		for url, _ := range p.Url {
-			urls = append(urls, url)
-		}
-		urlChanReceiver <- urls
 
 	}
 

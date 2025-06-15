@@ -4,18 +4,6 @@ import (
 	"strings"
 )
 
-const (
-	BATCH_SIZE       = 1000  // Traiter 1000 pages à la fois
-	STORE_BATCH_SIZE = 10000 // Stocker 10000 WordPages à la fois
-)
-
-// Structure pour stocker les statistiques globales
-type GlobalStats struct {
-	TotalPages     int
-	WordDocCount   map[string]int // Nombre de documents contenant chaque mot
-	WordTotalCount map[string]int // Nombre total d'occurrences de chaque mot
-}
-
 func GetWords(content string) map[string]int {
 	words := strings.Split(content, " ")
 	var StopWords = map[string]bool{

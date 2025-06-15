@@ -12,7 +12,7 @@ const (
 )
 
 func ComputePageRank() {
-	storage, err := db.NewStorage("search_engine")
+	storage, err := db.NewStorage()
 	if err != nil {
 		return
 	}

@@ -11,6 +11,18 @@ import (
 	"go.mongodb.org/mongo-driver/mongo/options"
 )
 
+type ConfigStruct struct {
+	Host     string
+	Port     int
+	Database string
+}
+
+var Config ConfigStruct = ConfigStruct{
+	Host:     "localhost",
+	Port:     27017,
+	Database: "search_engine",
+}
+
 type Document interface {
 	Save()
 }
@@ -23,17 +35,17 @@ type Storage struct {
 	WordPageCollection *mongo.Collection
 }
 
-func NewStorage(dbName string) (*Storage, error) {
+func NewStorage() (*Storage, error) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
-	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://localhost:27018"))
+	client, err := mongo.Connect(ctx, options.Client().ApplyURI("mongodb://"+Config.Host+":"+fmt.Sprintf("%d", Config.Port)))
 	if err != nil {
 		return nil, err
 	}
-	pageCollection := client.Database(dbName).Collection("pages")
-	urlQueueCollection := client.Database(dbName).Collection("urls")
-	wordPageCollection := client.Database(dbName).Collection("word_pages")
+	pageCollection := client.Database(Config.Database).Collection("pages")
+	urlQueueCollection := client.Database(Config.Database).Collection("urls")
+	wordPageCollection := client.Database(Config.Database).Collection("word_pages")
 	wordPageIndexes := []mongo.IndexModel{
 		{
 			Keys: bson.D{
