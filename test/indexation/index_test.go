@@ -6,7 +6,7 @@ import (
 )
 
 func TestGetPages(t *testing.T) {
-	storage, err := db.NewStorage("search_engine")
+	storage, err := db.NewStorage()
 	if err != nil {
 		t.Error(err)
 	}
