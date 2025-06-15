@@ -175,21 +175,30 @@ curl "http://localhost:8080/?q=intelligence%20artificielle&limit=5"
 
 ### Exemple de réponse (format JSON)
 ```json
-[
-  {
-    "Url": "https://fr.wikipedia.org/wiki/Intelligence_artificielle",
-    "Content": "...",
-    "PageRank": 0.123,
-    "Score": 0.567
-  },
-  {
-    "Url": "https://www.futura-sciences.com/tech/intelligence-artificielle/",
-    "Content": "...",
-    "PageRank": 0.089,
-    "Score": 0.451
-  }
-  // ... jusqu'à 'limit' résultats
-]
+{
+  "results": [
+    {
+      "page_url": "https://mondouala.mondoblog.org/la-question-fonciere-a-douala/",
+      "score": 0.5000073403790714
+    },
+    {
+      "page_url": "https://mondoblog.org/",
+      "score": 5.926059766065647e-7
+    },
+    {
+      "page_url": "https://www.mondoblog.org/",
+      "score": 3.53712392797778e-7
+    },
+    {
+      "page_url": "https://fr.wikipedia.org/wiki/Crise_anglophone_au_Cameroun",
+      "score": 1.224506941800799e-8
+    },
+    {
+      "page_url": "https://fr.wikipedia.org/wiki/Groupe_Carrefour",
+      "score": 7.72202212020664e-9
+    }
+  ]
+}
 ```
 
 ## Auteur
