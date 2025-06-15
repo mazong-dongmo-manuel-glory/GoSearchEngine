@@ -15,7 +15,7 @@ import (
 const MinTimeBetweenRequest = 10 * time.Second
 const MaxIterationForGetUrl = 100000
 const MaxSizeQueue = 1000000
-const MaxSizePage = 10000
+const MaxSizePage = 1000
 
 var urlChanReceiverIsClosed = false
 var MuSizePage sync.Mutex

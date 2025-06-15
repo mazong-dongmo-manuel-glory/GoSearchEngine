@@ -1,6 +1,8 @@
 package indexation
 
 import (
+	"math"
+	"search_egine/db"
 	"strings"
 )
 
@@ -143,4 +145,73 @@ func GetWords(content string) map[string]int {
 	}
 
 	return wordsResult
+}
+
+func ProcessTFIDF() {
+	storage, err := db.NewStorage()
+	if err != nil {
+		panic(err)
+	}
+	defer storage.Close()
+
+	pages := db.GetPages(storage, 20000)
+	if pages == nil || len(pages) == 0 {
+		return
+	}
+
+	N := float64(len(pages)) // Nombre total de documents
+
+	// 1. Construire DF (Document Frequency)
+	df := make(map[string]int)
+	pageWords := make([]map[string]int, len(pages)) // pour stocker les mots par page
+
+	for i, page := range pages {
+		wordCount := GetWords(page.Content)
+		pageWords[i] = wordCount
+		seen := make(map[string]bool)
+
+		for word := range wordCount {
+			if !seen[word] {
+				df[word]++
+				seen[word] = true
+			}
+		}
+	}
+
+	// 2. Calculer TF-IDF
+	var wordPages []interface{}
+
+	for i, page := range pages {
+		wordCount := pageWords[i]
+
+		// Calculer nombre total de mots dans le document
+		totalWords := 0
+		for _, count := range wordCount {
+			totalWords += count
+		}
+
+		for word, count := range wordCount {
+			tf := float64(count) / float64(totalWords)
+			idf := math.Log(N / float64(df[word]))
+			tfidf := tf * idf
+
+			wordPages = append(wordPages, db.WordPage{
+				Word:    word,
+				PageUrl: page.Url,
+				TfIdf:   tfidf,
+				Score:   tfidf * page.PageRank, // Score initial égal au TF-IDF
+			})
+		}
+
+		// Insertion par batch si trop gros
+		if len(wordPages) >= 1000 {
+			storage.StoreMany(wordPages)
+			wordPages = []interface{}{}
+		}
+	}
+
+	// Insertion finale
+	if len(wordPages) > 0 {
+		storage.StoreMany(wordPages)
+	}
 }

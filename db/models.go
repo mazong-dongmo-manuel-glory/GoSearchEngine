@@ -6,10 +6,7 @@ type Page struct {
 	Urls     map[string]string `bson:"urls"`
 	PageRank float64           `bson:"pagerank"` // ← Ajouté
 }
-type Word struct {
-	Word string `bson:"word"`
-	Idf  int    `bson:"idf"`
-}
+
 type WordPage struct {
 	Word    string  `bson:"word"`
 	PageUrl string  `bson:"page_url"`

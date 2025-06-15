@@ -112,7 +112,6 @@ func (s *Storage) Store(d interface{}) {
 func (s *Storage) StoreMany(interfaces []interface{}) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	fmt.Println(interfaces[0])
 
 	_, err := s.WordPageCollection.InsertMany(ctx, interfaces, options.InsertMany().SetOrdered(false))
 	if err != nil {
@@ -150,14 +149,13 @@ func GetPages(storage *Storage, limit int64) []*Page {
 }
 
 func (s *Storage) GetWordPagesByWords(words []string, limit int64) ([]WordPage, error) {
-	collection := s.Client.Database("search_engine").Collection("word_pages") // En supposant que "word_pages" est le nom de votre collection
+	collection := s.Client.Database("search_engine").Collection("word_pages")
 
-	// Requête pour les WordPages où le champ 'word' est dans le slice 'words' fourni.
 	filter := bson.M{"word": bson.M{"$in": words}}
 
 	findOptions := options.Find()
-	findOptions.SetSort(bson.D{{Key: "tfidf", Value: -1}}) // Trier par TF-IDF descendant
-	findOptions.SetLimit(limit)                            // Limiter le nombre de résultats par mot si nécessaire
+	findOptions.SetSort(bson.D{{Key: "tfidf", Value: -1}})
+	findOptions.SetLimit(limit)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
