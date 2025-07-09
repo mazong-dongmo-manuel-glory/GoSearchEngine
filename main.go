@@ -2,10 +2,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
-	"search_egine/api"
 	"search_egine/crawler"
-	"search_egine/indexation"
 	"sync"
 )
 
@@ -83,10 +80,5 @@ func main() {
 	}
 	crawler.Wg.Wait()
 	fmt.Println("Fin du traitement")
-	indexation.ComputePageRank()
-	indexation.ProcessTFIDF()
-	router := gin.Default()
-	router.GET("/", api.SearchHandler)
-	router.Run(":8080")
 
 }

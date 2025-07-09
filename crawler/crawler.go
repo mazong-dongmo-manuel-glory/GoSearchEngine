@@ -5,7 +5,6 @@ import (
 	"io"
 	"net/http"
 	url2 "net/url"
-	"search_egine/db"
 	"search_egine/parser"
 	"strings"
 	"sync"
@@ -172,7 +171,7 @@ func CrawlerProcess(id int) {
 	}
 	defer storage.Close()
 	lastUrl := ""
-	for {
+	for true {
 		select {
 		case url, ok := <-urlChanSender:
 			if !ok {
@@ -209,7 +208,7 @@ func CrawlerProcess(id int) {
 			}
 			storage.Store(&page)
 
-			for url, _ := range p.Url {
+			for url := range p.Url {
 				urls = append(urls, url)
 			}
 			MuSizePage.Lock()
