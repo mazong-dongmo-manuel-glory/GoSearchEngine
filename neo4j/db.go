@@ -3,6 +3,7 @@ package neo4j
 import (
 	"context"
 	"fmt"
+	"search_egine/models"
 
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
 )
@@ -37,8 +38,24 @@ func NewStorage() (*Database, error) {
 	if err != nil {
 		return nil, err
 	}
-	fmt.Printf("Conntected ")
+	fmt.Printf("Conntected\n")
 	db := &Database{Driver: driver}
 	return db, nil
 
+}
+
+func (db *Database) Save(node interface{}) {
+	switch n := node.(type) {
+	case models.Page:
+
+		res, err := neo4j.ExecuteQuery(Config.Ctx, db.Driver, `MERGE (p:Page {url : $url, title : $title, pagerank : $pagerank) RETURN p`, map[string]any{
+			"url":      n.Url,
+			"title":    n.Title,
+			"pagerank": n.PageRank,
+		}, neo4j.EagerResultTransformer, neo4j.ExecuteQueryWithDatabase("neo4j"))
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("%v\n", res)
+	}
 }
