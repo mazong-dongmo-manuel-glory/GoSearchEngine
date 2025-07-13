@@ -5,6 +5,8 @@ import (
 	"io"
 	"net/http"
 	url2 "net/url"
+	"search_egine/models"
+	"search_egine/neo4j"
 	"search_egine/parser"
 	"strings"
 	"sync"
@@ -165,11 +167,10 @@ func CrawlerProcess(id int) {
 		fmt.Printf("Crawler %d done\n", id)
 	}()
 
-	storage, err := db.NewStorage()
+	storage, err := neo4j.NewStorage()
 	if err != nil {
 		return
 	}
-	defer storage.Close()
 	lastUrl := ""
 	for true {
 		select {
@@ -202,16 +203,17 @@ func CrawlerProcess(id int) {
 			p.Traverse()
 			urls := make([]string, 0)
 
-			page := db.Page{
+			page := models.Page{
 				Url:     url,
 				Content: p.Content,
-				Urls:    p.Url,
 			}
-			storage.Store(&page)
 
 			for url := range p.Url {
 				urls = append(urls, url)
 			}
+			page.Urls = urls
+			storage.Save(page)
+
 			MuSizePage.Lock()
 			if urlChanReceiverIsClosed {
 				//fmt.Printf("Max size page reached %v\n", id)

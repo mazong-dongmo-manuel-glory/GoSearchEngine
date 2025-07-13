@@ -3,9 +3,8 @@ package neo4j
 import (
 	"context"
 	"fmt"
-	"search_egine/models"
-
 	"github.com/neo4j/neo4j-go-driver/v5/neo4j"
+	"search_egine/models"
 )
 
 type ConfigStruct struct {
@@ -43,35 +42,25 @@ func NewStorage() (*Database, error) {
 
 }
 
-func (db *Database) Save(node interface{}) {
-	switch n := node.(type) {
-	case models.Page:
+func (db *Database) Save(page models.Page) error {
+	_, err := neo4j.ExecuteQuery(Config.Ctx, db.Driver, `
+MERGE (main:Page {url: $url})
+SET 
+    main.pagerank = $pagerank,
+    main.content = $content,
+    main.urls = $urls
 
-		res, err := neo4j.ExecuteQuery(Config.Ctx, db.Driver, `MERGE (p:Page {url : $url, title : $title, pagerank : $pagerank}) RETURN p`, map[string]any{
-			"url":      n.Url,
-			"title":    n.Title,
-			"pagerank": n.PageRank,
-		}, neo4j.EagerResultTransformer, neo4j.ExecuteQueryWithDatabase("neo4j"))
-		if err != nil {
-			panic(err)
-		}
-		fmt.Printf("%v\n", res)
+RETURN NULL
 
-	case models.Word:
-		res, err := neo4j.ExecuteQuery(Config.Ctx, db.Driver, `MERGE (w:Word {value : $value})
-ON CREATE SET w.count = $count, w.tfidf = $tfidf 
-MERGE(p:Page {url : $url})
-MERGE (p)-[c:EST_LIE]->(w) ON CREATE SET c.occurence = $occurence RETURN NULL `, map[string]any{
-			"value":     n.Value,
-			"count":     n.Count,
-			"tfidf":     n.TfIdf,
-			"url":       n.Url,
-			"occurence": n.Occurence,
-		}, neo4j.EagerResultTransformer, neo4j.ExecuteQueryWithDatabase("neo4j"))
-		if err != nil {
-			panic(err)
-		}
-		fmt.Printf("%v\n", res)
+`, map[string]any{
+		"url":      page.Url,
+		"content":  page.Content,
+		"urls":     page.Urls,
+		"pagerank": 0,
+	}, neo4j.EagerResultTransformer, neo4j.ExecuteQueryWithDatabase("neo4j"))
 
+	if err != nil {
+		panic(err)
 	}
+	return err
 }

@@ -4,4 +4,6 @@ type Page struct {
 	Url      string
 	Title    string
 	PageRank float64
+	Urls     []string
+	Content  string
 }

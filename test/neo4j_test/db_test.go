@@ -23,14 +23,9 @@ func TestDatabaseSave(t *testing.T) {
 		Url:      "https://www.test.com",
 		Title:    "test",
 		PageRank: 0.5556565778945,
+		Content:  "Lorem Ipsum dolor conse s  sdsjdk sjdksjdkj uieuwiueiwejaksj s",
+		Urls:     []string{"https://www.wikipedia.com"},
 	}
-	w := models.Word{
-		Value:     "cochcon",
-		Url:       "https://www.test.com",
-		Count:     1,
-		Occurence: 0,
-		TfIdf:     0,
-	}
-	db.Save(w)
+
 	db.Save(p)
 }
