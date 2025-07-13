@@ -201,6 +201,7 @@ func CrawlerProcess(id int) {
 			p := parser.NewParser(dataStr, url)
 			p.Traverse()
 			urls := make([]string, 0)
+
 			page := db.Page{
 				Url:     url,
 				Content: p.Content,

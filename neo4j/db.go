@@ -32,7 +32,6 @@ func NewStorage() (*Database, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer driver.Close(Config.Ctx)
 
 	err = driver.VerifyConnectivity(ctx)
 	if err != nil {
@@ -48,7 +47,7 @@ func (db *Database) Save(node interface{}) {
 	switch n := node.(type) {
 	case models.Page:
 
-		res, err := neo4j.ExecuteQuery(Config.Ctx, db.Driver, `MERGE (p:Page {url : $url, title : $title, pagerank : $pagerank) RETURN p`, map[string]any{
+		res, err := neo4j.ExecuteQuery(Config.Ctx, db.Driver, `MERGE (p:Page {url : $url, title : $title, pagerank : $pagerank}) RETURN p`, map[string]any{
 			"url":      n.Url,
 			"title":    n.Title,
 			"pagerank": n.PageRank,
@@ -57,5 +56,22 @@ func (db *Database) Save(node interface{}) {
 			panic(err)
 		}
 		fmt.Printf("%v\n", res)
+
+	case models.Word:
+		res, err := neo4j.ExecuteQuery(Config.Ctx, db.Driver, `MERGE (w:Word {value : $value})
+ON CREATE SET w.count = $count, w.tfidf = $tfidf 
+MERGE(p:Page {url : $url})
+MERGE (p)-[c:EST_LIE]->(w) ON CREATE SET c.occurence = $occurence RETURN NULL `, map[string]any{
+			"value":     n.Value,
+			"count":     n.Count,
+			"tfidf":     n.TfIdf,
+			"url":       n.Url,
+			"occurence": n.Occurence,
+		}, neo4j.EagerResultTransformer, neo4j.ExecuteQueryWithDatabase("neo4j"))
+		if err != nil {
+			panic(err)
+		}
+		fmt.Printf("%v\n", res)
+
 	}
 }
