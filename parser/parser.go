@@ -30,8 +30,11 @@ func NewParser(content string, baseUrl string) *Parser {
 }
 
 // recupere le contenu et les liens
+// Utilise strings.Builder au lieu de += pour éviter O(n²) copies de strings
 func (p *Parser) Traverse() {
+	var contentBuilder strings.Builder
 	task := []*html.Node{p.RootNode}
+
 	for len(task) > 0 {
 		node := task[len(task)-1]
 		task = task[:len(task)-1]
@@ -43,9 +46,12 @@ func (p *Parser) Traverse() {
 			}
 
 			// si c'est du texte on l'ajoute au contenu
-			if c.Type == html.TextNode && strings.TrimSpace(c.Data) != "" {
-
-				p.Content += cleanText(strings.TrimSpace(c.Data)) + " "
+			if c.Type == html.TextNode {
+				text := strings.TrimSpace(c.Data)
+				if text != "" {
+					contentBuilder.WriteString(cleanText(text))
+					contentBuilder.WriteByte(' ')
+				}
 			}
 
 			// si c'est un lien on enregistre tout
@@ -53,7 +59,6 @@ func (p *Parser) Traverse() {
 				newUrl := utils.BuildUrl(p.BaseUrl, p.GetAttribute(c, "href"))
 				if newUrl != "" {
 					p.Url[cleanText(newUrl)] = ""
-
 				}
 			}
 			//passer au prochain element
@@ -63,20 +68,19 @@ func (p *Parser) Traverse() {
 		}
 	}
 
+	p.Content = contentBuilder.String()
 }
 
-// Utilitaire pour recuter les attributs
+// Utilitaire pour recuperer les attributs — retour dès trouvé
 func (p *Parser) GetAttribute(node *html.Node, attrKey string) string {
-	attrValue := ""
 	if node.Type == html.ElementNode {
 		for _, attr := range node.Attr {
 			if attr.Key == attrKey {
-				attrValue = attr.Val
+				return attr.Val
 			}
 		}
 	}
-	return attrValue
-
+	return ""
 }
 
 func cleanText(text string) string {

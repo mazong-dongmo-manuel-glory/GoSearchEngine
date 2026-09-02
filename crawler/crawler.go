@@ -3,6 +3,7 @@ package crawler
 import (
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	url2 "net/url"
 	"search_egine/db"
@@ -24,6 +25,23 @@ var pageSize int = 0
 var urlChanSender = make(chan string, 1)
 var urlChanReceiver = make(chan []string, 1)
 var Wg = &sync.WaitGroup{}
+
+// ── HTTP Client avec timeouts ───────────────────────────────────────
+// Le client par défaut de Go n'a AUCUN timeout → les goroutines peuvent
+// bloquer indéfiniment sur un serveur lent ou mort.
+var httpClient = &http.Client{
+	Timeout: 30 * time.Second,
+	Transport: &http.Transport{
+		DialContext: (&net.Dialer{
+			Timeout:   10 * time.Second,
+			KeepAlive: 30 * time.Second,
+		}).DialContext,
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 5,
+		IdleConnTimeout:     90 * time.Second,
+		TLSHandshakeTimeout: 10 * time.Second,
+	},
+}
 
 type Queue struct {
 	Urls    []string
@@ -100,7 +118,7 @@ func (q *Queue) GetUrl() string {
 
 		}
 		if d, ok := q.Domains[urlParsed.Host]; ok {
-			if time.Now().Sub(d.LastVisitedTime) < MinTimeBetweenRequest && time.Now().Sub(q.start) > time.Second*10 {
+			if time.Since(d.LastVisitedTime) < MinTimeBetweenRequest && time.Since(q.start) > time.Second*10 {
 
 				q.Urls = q.Urls[1:]
 				q.Urls = append(q.Urls, url)
@@ -170,7 +188,7 @@ func CrawlerProcess(id int) {
 	if err != nil {
 		return
 	}
-	defer storage.Close()
+
 	lastUrl := ""
 	for {
 		select {
@@ -184,24 +202,30 @@ func CrawlerProcess(id int) {
 			}
 			lastUrl = url
 			fmt.Printf("Crawler %d : %s\n", id, url)
-			resp, err := http.Get(url)
-			if err != nil {
 
+			// Utilise le client HTTP avec timeout au lieu du client par défaut
+			resp, err := httpClient.Get(url)
+			if err != nil {
 				continue
 			}
+
 			if resp.StatusCode != 200 || !strings.Contains(resp.Header.Get("Content-Type"), "text/html") {
 				resp.Body.Close()
 				continue
 			}
 			data, err := io.ReadAll(resp.Body)
+			resp.Body.Close() // Toujours fermer le body — avant c'était oublié dans le path de succès
 			if err != nil {
-				resp.Body.Close()
 				continue
 			}
+
 			dataStr := string(data)
 			p := parser.NewParser(dataStr, url)
+			if p == nil {
+				continue
+			}
 			p.Traverse()
-			urls := make([]string, 0)
+			urls := make([]string, 0, len(p.Url))
 			page := db.Page{
 				Url:     url,
 				Content: p.Content,
@@ -209,19 +233,17 @@ func CrawlerProcess(id int) {
 			}
 			storage.Store(&page)
 
-			for url, _ := range p.Url {
-				urls = append(urls, url)
+			for u := range p.Url {
+				urls = append(urls, u)
 			}
 			MuSizePage.Lock()
 			if urlChanReceiverIsClosed {
-				//fmt.Printf("Max size page reached %v\n", id)
 				MuSizePage.Unlock()
 				return
 			}
 			urlChanReceiver <- urls
 			pageSize++
 			if pageSize > MaxSizePage {
-				//fmt.Printf("Max size page reached %v\n", id)
 				urlChanReceiverIsClosed = true
 				close(urlChanReceiver)
 

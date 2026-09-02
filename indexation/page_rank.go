@@ -1,6 +1,7 @@
 package indexation
 
 import (
+	"log"
 	"math"
 	"search_egine/db"
 )
@@ -18,12 +19,15 @@ func ComputePageRank() {
 	}
 
 	pages := db.GetPages(storage, 20000) // Récupère toutes les pages
+	if len(pages) == 0 {
+		return
+	}
 	N := float64(len(pages))
 
 	// Initialise les PageRank à 1/N
-	pageRanks := make(map[string]float64)
-	outLinks := make(map[string][]string)
-	inLinks := make(map[string][]string)
+	pageRanks := make(map[string]float64, len(pages))
+	outLinks := make(map[string][]string, len(pages))
+	inLinks := make(map[string][]string, len(pages))
 
 	for _, page := range pages {
 		pageRanks[page.Url] = 1.0 / N
@@ -33,9 +37,9 @@ func ComputePageRank() {
 		}
 	}
 
-	// Boucle d’itération du PageRank
+	// Boucle d'itération du PageRank
 	for i := 0; i < maxIterations; i++ {
-		newRanks := make(map[string]float64)
+		newRanks := make(map[string]float64, len(pages))
 		var diff float64
 
 		for _, page := range pages {
@@ -58,9 +62,9 @@ func ComputePageRank() {
 		}
 	}
 
-	// Stockage des résultats dans les pages
-	for _, page := range pages {
-		page.PageRank = pageRanks[page.Url]
-		_ = storage.UpdatePageRank(page.Url, page.PageRank) // Tu dois créer cette fonction dans `db`
+	// Stockage des résultats via BulkWrite — UN seul appel réseau
+	// Avant : N appels UpdateOne séparés (très lent)
+	if err := storage.BulkUpdatePageRanks(pageRanks); err != nil {
+		log.Printf("Erreur BulkUpdatePageRanks: %v", err)
 	}
 }

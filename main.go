@@ -5,13 +5,10 @@ import (
 	"search_egine/api"
 	"search_egine/crawler"
 	"search_egine/indexation"
-	"sync"
 	"time"
 
 	"github.com/gin-gonic/gin"
 )
-
-var wg sync.WaitGroup
 
 func main() {
 	var sitesFrancophones = []string{
@@ -82,24 +79,29 @@ func main() {
 	for i := 0; i < 5; i++ {
 		crawler.Wg.Add(1)
 		go crawler.CrawlerProcess(i)
-		go func() {
-			i := time.Second
-			for {
-				time.Sleep(i)
-				indexation.ComputePageRank()
-				indexation.ProcessTFIDF()
-				i += 10
-				fmt.Printf("Fin du traitement %v", i)
-			}
-
-		}()
-		go func() {
-
-			router := gin.Default()
-			router.GET("/", api.SearchHandler)
-			router.Run(":8080")
-		}()
 	}
-	crawler.Wg.Wait()
 
+	// UN seul serveur HTTP
+	go func() {
+		router := gin.Default()
+		router.GET("/", api.SearchHandler)
+		router.Run(":8080")
+	}()
+
+	// UNE seule goroutine d'indexation avec interval croissant plafonné
+	go func() {
+		interval := 30 * time.Second
+		const maxInterval = 5 * time.Minute
+		for {
+			time.Sleep(interval)
+			indexation.ComputePageRank()
+			indexation.ProcessTFIDF()
+			if interval < maxInterval {
+				interval += 30 * time.Second
+			}
+			fmt.Printf("Fin du traitement, prochain dans %v\n", interval)
+		}
+	}()
+
+	crawler.Wg.Wait()
 }

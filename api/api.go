@@ -22,7 +22,6 @@ func SearchHandler(c *gin.Context) {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "Échec de la connexion à la base de données"})
 		return
 	}
-	defer storage.Close()
 
 	query := c.Query("q")
 	if query == "" {
@@ -36,7 +35,7 @@ func SearchHandler(c *gin.Context) {
 		return
 	}
 
-	var queryWords []string
+	queryWords := make([]string, 0, len(queryWordsMap))
 	for word := range queryWordsMap {
 		queryWords = append(queryWords, word)
 	}
@@ -51,6 +50,7 @@ func SearchHandler(c *gin.Context) {
 	pageScores := make(map[string]float64)
 	pageBonuses := make(map[string]float64)
 
+	// ToLower une seule fois en dehors de la boucle
 	queryLower := strings.ToLower(query)
 
 	for _, wp := range wordPages {
@@ -60,12 +60,15 @@ func SearchHandler(c *gin.Context) {
 
 		pageScores[wp.PageUrl] += wp.Score
 
-		if strings.Contains(strings.ToLower(wp.PageUrl), queryLower) {
-			pageBonuses[wp.PageUrl] += 0.5
+		// Évite de recalculer ToLower(wp.PageUrl) si on l'a déjà vu
+		if _, already := pageBonuses[wp.PageUrl]; !already {
+			if strings.Contains(strings.ToLower(wp.PageUrl), queryLower) {
+				pageBonuses[wp.PageUrl] = 0.5
+			}
 		}
 	}
 
-	var results []SearchResult
+	results := make([]SearchResult, 0, len(pageScores))
 	for pageUrl, score := range pageScores {
 		score += pageBonuses[pageUrl]
 		results = append(results, SearchResult{
