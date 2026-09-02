@@ -2,11 +2,13 @@ package main
 
 import (
 	"fmt"
-	"github.com/gin-gonic/gin"
 	"search_egine/api"
 	"search_egine/crawler"
 	"search_egine/indexation"
 	"sync"
+	"time"
+
+	"github.com/gin-gonic/gin"
 )
 
 var wg sync.WaitGroup
@@ -77,16 +79,27 @@ func main() {
 	queue := crawler.NewQueue()
 	queue.AddUrl(sitesFrancophones)
 	queue.QueueHandler()
-	for i := 0; i < 10; i++ {
+	for i := 0; i < 5; i++ {
 		crawler.Wg.Add(1)
 		go crawler.CrawlerProcess(i)
+		go func() {
+			i := time.Second
+			for {
+				time.Sleep(i)
+				indexation.ComputePageRank()
+				indexation.ProcessTFIDF()
+				i += 10
+				fmt.Printf("Fin du traitement %v", i)
+			}
+
+		}()
+		go func() {
+
+			router := gin.Default()
+			router.GET("/", api.SearchHandler)
+			router.Run(":8080")
+		}()
 	}
 	crawler.Wg.Wait()
-	fmt.Println("Fin du traitement")
-	indexation.ComputePageRank()
-	indexation.ProcessTFIDF()
-	router := gin.Default()
-	router.GET("/", api.SearchHandler)
-	router.Run(":8080")
 
 }
